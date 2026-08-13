@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday Kush 🎉</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <canvas id="confetti-canvas"></canvas>
+
+    <main class="card">
+        <h1>🎉 Happy Birthday Kush! 🎂</h1>
+        <p class="subtitle">Wishing you a fantastic day filled with joy, laughter, and lots of cake! 🎈</p>
+
+        <button id="celebrate-btn">🎊 Celebrate!</button>
+
+        <section class="countdown" id="countdown-section">
+            <h2>Countdown to Midnight 🕛</h2>
+            <div id="countdown">--:--:--</div>
+        </section>
+
+        <section class="guestbook">
+            <h2>Birthday Guestbook 💌</h2>
+            <form id="wish-form">
+                <input type="text" id="wish-name" placeholder="Your name" maxlength="60">
+                <textarea id="wish-message" placeholder="Leave a birthday wish..." maxlength="280" required></textarea>
+                <button type="submit">Send Wish</button>
+            </form>
+            <ul id="wish-list"></ul>
+        </section>
+    </main>
+
+    <script src="/js/confetti.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

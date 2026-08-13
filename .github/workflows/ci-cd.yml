@@ -1,0 +1,195 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  code-scan:
+    name: CodeQL Code Scanning
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn -B clean package -DskipTests
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  build:
+    name: Build & Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn -B clean package
+
+      - name: Upload jar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: happy-birthday-kush-jar
+          path: target/happy-birthday-kush.jar
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn -B clean package
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/happy-birthday-kush.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-build-scan:
+    name: Build & Scan Docker Image
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (local, not pushed yet)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: happy-birthday-kush:scan
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: happy-birthday-kush:scan
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Upload Trivy results to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Fail build on CRITICAL/HIGH vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: happy-birthday-kush:scan
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+
+  docker-hub:
+    name: Push Docker Image to Docker Hub
+    needs: docker-build-scan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/happy-birthday-kush:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/happy-birthday-kush:${{ github.sha }}
+
+  gitops-update:
+    name: Update GitOps Manifest
+    needs: docker-hub
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Bump image tag in k8s manifest
+        working-directory: k8s
+        run: |
+          kustomize edit set image \
+            __DOCKERHUB_USERNAME__/happy-birthday-kush=${{ secrets.DOCKERHUB_USERNAME }}/happy-birthday-kush:${{ github.sha }}
+
+      - name: Commit and push updated manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/kustomization.yaml
+          if git diff --cached --quiet; then
+            echo "No manifest changes to commit"
+          else
+            git commit -m "chore(gitops): deploy image ${{ github.sha }} [skip ci]"
+            git push
+          fi

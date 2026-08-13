@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: happy-birthday-kush
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    # Update this to your actual repo URL
+    repoURL: https://github.com/<your-username>/happy-birthday-kush.git
+    targetRevision: main
+    path: k8s
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: happy-birthday-kush
+
+  syncPolicy:
+    automated:
+      prune: true      # remove resources deleted from Git
+      selfHeal: true    # revert manual cluster changes back to match Git
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: happy-birthday-kush
+  namespace: happy-birthday-kush
+  labels:
+    app: happy-birthday-kush
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: happy-birthday-kush
+  template:
+    metadata:
+      labels:
+        app: happy-birthday-kush
+    spec:
+      containers:
+        - name: happy-birthday-kush
+          # image tag is updated automatically by CI on each push to main
+          image: __DOCKERHUB_USERNAME__/happy-birthday-kush:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
