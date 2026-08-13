@@ -4,10 +4,11 @@ kind: Kustomization
 namespace: happy-birthday-kush
 
 resources:
-  - namespace.yaml
-  - deployment.yaml
-  - service.yaml
+- namespace.yaml
+- deployment.yaml
+- service.yaml
 
 images:
-  - name: __DOCKERHUB_USERNAME__/happy-birthday-kush
-    newTag: latest
+- name: __DOCKERHUB_USERNAME__/happy-birthday-kush
+  newName: zerone010101/happy-birthday-kush
+  newTag: 2427cf49724989639280ec0ed7570cee7faf6115
