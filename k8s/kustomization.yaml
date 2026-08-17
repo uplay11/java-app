@@ -11,4 +11,4 @@ resources:
 images:
 - name: __DOCKERHUB_USERNAME__/happy-birthday-kush
   newName: zerone010101/happy-birthday-kush
-  newTag: 238df15e3dc0ce60a950bf17c20913b8fbefb0d0
+  newTag: 2953cdfbd2f8239f8e2b746fe59152aa8cef960e
