@@ -7,8 +7,7 @@ spec:
   project: default
 
   source:
-    # Update this to your actual repo URL
-    repoURL: https://github.com/<your-username>/happy-birthday-kush.git
+    repoURL: https://github.com/uplay11/java-app.git
     targetRevision: main
     path: k8s
 
@@ -18,8 +17,8 @@ spec:
 
   syncPolicy:
     automated:
-      prune: true      # remove resources deleted from Git
-      selfHeal: true    # revert manual cluster changes back to match Git
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
     retry:
